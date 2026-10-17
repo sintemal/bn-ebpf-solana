@@ -207,7 +207,18 @@ class SolanaView(BinaryView):
         # Add LOAD segments
         for s in p.segments:
             if s.type == lief.ELF.Segment.TYPE.LOAD:
-                self.add_auto_segment((1 << 32) + s.virtual_address, s.virtual_size, s.physical_address, s.physical_size, int(s.flags))
+                virtual_address = s.virtual_address
+                # Older SBF ELFs use zero-based VMAs, while SBFv3 ELFs may
+                # already carry the 4 GiB program base in p_vaddr.
+                if virtual_address < (1 << 32):
+                    virtual_address += 1 << 32
+                self.add_auto_segment(
+                    virtual_address,
+                    s.virtual_size,
+                    s.file_offset,
+                    s.physical_size,
+                    int(s.flags),
+                )
 
         self.add_auto_segment(2 << 32, 0x8000, 0, 0, SegmentFlag.SegmentReadable | SegmentFlag.SegmentWritable)
         self.add_auto_segment(3 << 32, 0x8000, 0, 0, SegmentFlag.SegmentReadable | SegmentFlag.SegmentWritable)
